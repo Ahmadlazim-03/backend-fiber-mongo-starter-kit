@@ -1,0 +1,12 @@
+/* file: public/style.css */
+/* (CSS sederhana agar tampilan lebih baik) */
+body { font-family: sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+.container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; max-width: 500px; }
+button { background-color: #007bff; color: white; border: none; padding: 15px 30px; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; }
+button:hover { background-color: #0056b3; }
+.hidden { display: none; }
+#result { margin-top: 30px; text-align: left; }
+.key-container { margin-bottom: 15px; }
+label { font-weight: bold; display: block; margin-bottom: 5px; }
+pre { background-color: #eee; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-all; }
+.warning { color: #d9534f; background-color: #f2dede; border: 1px solid #ebccd1; padding: 10px; border-radius: 4px; }

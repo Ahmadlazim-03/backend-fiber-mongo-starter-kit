@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Key Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Developer API Key Portal</h1>
+        <p>Click the button below to generate a new API Key and Secret.</p>
+        <button id="generateBtn">Generate New Key</button>
+        <div id="result" class="hidden">
+            <h2>Your Keys Have Been Generated!</h2>
+            <p class="warning">Please save your API Secret now. You will not be able to see it again.</p>
+            <div class="key-container">
+                <label>API Key:</label>
+                <pre id="apiKey"></pre>
+            </div>
+            <div class="key-container">
+                <label>API Secret:</label>
+                <pre id="apiSecret"></pre>
+            </div>
+        </div>
+        <div id="error" class="hidden"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
