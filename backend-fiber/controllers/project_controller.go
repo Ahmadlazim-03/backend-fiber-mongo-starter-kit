@@ -3,10 +3,10 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
-	"errors" 
 
 	"github.com/fiber-mongo/starter-kit/database" // Sesuaikan dengan nama modul Anda
 	"github.com/fiber-mongo/starter-kit/models"   // Sesuaikan dengan nama modul Anda
@@ -250,4 +250,99 @@ func CreateUserCollection(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": fmt.Sprintf("Collection '%s' created successfully.", input.CollectionName),
 	})
+}
+
+func UpdateCollection(c *fiber.Ctx) error {
+	projectCollection := database.GetCollection("projects")
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	projObjID, err := primitive.ObjectIDFromHex(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Project ID format"})
+	}
+	collectionName := c.Params("collName")
+
+	var project models.Project
+	err = projectCollection.FindOne(ctx, bson.M{"_id": projObjID}).Decode(&project)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+
+	userDBClient, err := connectToUserDB(ctx, project)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not connect to user database"})
+	}
+	defer userDBClient.Disconnect(ctx)
+
+	var payload struct {
+		Schema bson.M `json:"schema"`
+	}
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	command := bson.D{
+		{"collMod", collectionName},
+		{"validator", bson.M{"$jsonSchema": payload.Schema}},
+		{"validationLevel", "strict"},
+	}
+
+	err = userDBClient.Database(project.DBName).RunCommand(ctx, command).Err()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update collection schema", "details": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Collection schema updated successfully"})
+}
+
+// Handler untuk DELETE /projects/{id}/collections/{collName} (Hapus Koleksi)
+func DeleteCollection(c *fiber.Ctx) error {
+	projectCollection := database.GetCollection("projects")
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	projObjID, err := primitive.ObjectIDFromHex(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Project ID format"})
+	}
+	collectionName := c.Params("collName")
+
+	var project models.Project
+	err = projectCollection.FindOne(ctx, bson.M{"_id": projObjID}).Decode(&project)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+
+	userDBClient, err := connectToUserDB(ctx, project)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Could not connect to user database"})
+	}
+	defer userDBClient.Disconnect(ctx)
+
+	err = userDBClient.Database(project.DBName).Collection(collectionName).Drop(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to drop collection", "details": err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Collection dropped successfully"})
+}
+
+func GetOneProject(c *fiber.Ctx) error {
+	projectCollection := database.GetCollection("projects")
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	projObjID, err := primitive.ObjectIDFromHex(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Project ID format"})
+	}
+
+	var project models.Project
+	err = projectCollection.FindOne(ctx, bson.M{"_id": projObjID}).Decode(&project)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Project not found"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(project)
 }

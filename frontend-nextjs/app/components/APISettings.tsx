@@ -78,6 +78,22 @@ export default function APISettings({ project, onSettingsSave }: { project: any,
         setIsSaving(false);
     }
   };
+  
+  const handleDeleteCollection = async (collectionName: string) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE the '${collectionName}' collection and all its data? This cannot be undone.`)) return;
+
+    try {
+        const response = await fetch(`http://localhost:8080/api/v1/projects/${project.id}/collections/${collectionName}`, {
+            method: 'DELETE',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to delete collection');
+        alert('Collection deleted successfully!');
+        fetchAllCollections(); // Refresh daftar koleksi
+    } catch(err: any) {
+        alert(`Error: ${err.message}`);
+    }
+  };
 
   const handleFieldChange = (id: number, field: keyof SchemaField, value: string | boolean) => {
     setSchemaFields(fields =>
@@ -147,11 +163,11 @@ export default function APISettings({ project, onSettingsSave }: { project: any,
   if (isLoading) return <p>Loading collections...</p>;
 
   return (
-    <div className="max-w-3xl rounded-lg bg-white p-8 shadow-md">
+    <div className="max-w-3xl">
       <div className="flex items-center justify-between border-b pb-4">
         <div>
-            <h2 className="text-2xl font-bold">Manage API Endpoints</h2>
-            <p className="mt-2 text-gray-600">Select which collections you want to expose as API endpoints.</p>
+            <h2 className="text-2xl font-bold">API & Collections</h2>
+            <p className="mt-2 text-gray-600">Manage collections and control which are exposed as API endpoints.</p>
         </div>
         <button onClick={() => setIsCreateModalOpen(true)} className="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">
             + New Collection
@@ -164,19 +180,22 @@ export default function APISettings({ project, onSettingsSave }: { project: any,
         {allCollections.map(name => {
           const isEnabled = activeCollections.includes(name);
           return (
-            <div key={name} className="rounded-md border p-4 transition-all duration-300">
+            <div key={name} className="rounded-md border p-4">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-lg">{name}</span>
-                <label htmlFor={`toggle-${name}`} className="flex cursor-pointer items-center">
-                    <div className="relative">
-                        <input type="checkbox" id={`toggle-${name}`} className="sr-only" checked={isEnabled} onChange={() => handleToggle(name)} />
-                        <div className="block h-8 w-14 rounded-full bg-gray-300"></div>
-                        <div className={`dot absolute left-1 top-1 h-6 w-6 rounded-full bg-white transition ${isEnabled ? 'translate-x-6 !bg-green-400' : ''}`}></div>
-                    </div>
-                    <div className="ml-3 font-medium text-gray-700">{isEnabled ? 'Active' : 'Inactive'}</div>
-                </label>
+                <div className="flex items-center space-x-4">
+                    <button onClick={() => alert('Edit schema feature is coming soon!')} className="text-sm font-semibold text-gray-600 hover:text-blue-600">Edit</button>
+                    <button onClick={() => handleDeleteCollection(name)} className="text-sm font-semibold text-gray-600 hover:text-red-600">Delete</button>
+                    <label htmlFor={`toggle-${name}`} className="flex cursor-pointer items-center">
+                        <div className="relative">
+                            <input type="checkbox" id={`toggle-${name}`} className="sr-only" checked={isEnabled} onChange={() => handleToggle(name)} />
+                            <div className="block h-8 w-14 rounded-full bg-gray-300"></div>
+                            <div className={`dot absolute left-1 top-1 h-6 w-6 rounded-full bg-white transition ${isEnabled ? 'translate-x-6 !bg-green-400' : ''}`}></div>
+                        </div>
+                    </label>
+                </div>
               </div>
-
+              
               {isEnabled && (
                 <div className="mt-4 space-y-2 rounded-lg bg-gray-50 p-3">
                     <p className="text-sm font-semibold">Endpoint Activated:</p>
@@ -193,11 +212,11 @@ export default function APISettings({ project, onSettingsSave }: { project: any,
             </div>
           )
         })}
-        {allCollections.length === 0 && <p className="text-center text-gray-500">No collections found in this database.</p>}
+        {allCollections.length === 0 && <p className="text-center text-gray-500">No collections found. Create your first one!</p>}
       </div>
-
+      
       <button onClick={handleSaveChanges} disabled={isSaving || allCollections.length === 0} className="mt-8 w-full rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400">
-        {isSaving ? 'Saving...' : 'Save Changes'}
+        {isSaving ? 'Saving...' : 'Save API Endpoint Settings'}
       </button>
 
       {/* Modal untuk Create Collection & Schema Builder */}

@@ -4,18 +4,17 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 
-// Definisikan props yang akan diterima komponen ini
+// Definisikan props yang akan diterima komponen ini dari halaman induknya
 interface DataExplorerProps {
   projectId: string;
   apiKey: string;
+  collectionNameFromUrl: string; // Menerima nama koleksi dari parameter URL
 }
 
-export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
-  const [allCollections, setAllCollections] = useState<string[]>([]); // State baru untuk daftar koleksi
-  const [collectionName, setCollectionName] = useState(''); // Default collection name
+export default function DataExplorer({ projectId, apiKey, collectionNameFromUrl }: DataExplorerProps) {
   const [documents, setDocuments] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   // State untuk modal Create/Edit
@@ -24,36 +23,13 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
   const [currentDoc, setCurrentDoc] = useState<any>(null);
   const [docContent, setDocContent] = useState('');
 
-
-  // useEffect baru untuk mengambil daftar semua koleksi saat komponen dimuat
-  useEffect(() => {
-    const fetchCollectionsList = async () => {
-      if (!projectId) return;
-      try {
-        const response = await fetch(`http://localhost:8080/api/v1/projects/${projectId}/collections`);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to fetch collections');
-        
-        setAllCollections(data);
-        // Secara otomatis pilih koleksi pertama sebagai default jika ada
-        if (data.length > 0 && collectionName === '') {
-          setCollectionName(data[0]);
-        }
-      } catch (err: any) {
-        setError(`Failed to load collection list: ${err.message}`);
-      }
-    };
-    fetchCollectionsList();
-  }, [projectId]);
-
-
-  // Fungsi untuk mengambil data dokumen dari koleksi yang dipilih
+  // Fungsi untuk mengambil data dari API
   const fetchData = async () => {
-    if (!projectId || !collectionName) return;
+    if (!projectId || !collectionNameFromUrl) return;
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/data/${projectId}/${collectionName}`, {
+      const response = await fetch(`http://localhost:8080/api/v1/data/${projectId}/${collectionNameFromUrl}`, {
         headers: { 'X-API-Key': apiKey },
       });
       const data = await response.json();
@@ -73,22 +49,22 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
     }
   };
 
-  // useEffect ini sekarang akan terpanggil setiap kali collectionName berubah (dari dropdown)
+  // useEffect sekarang bergantung pada prop dari URL untuk memuat data
   useEffect(() => {
     fetchData();
-  }, [collectionName]); // Hanya bergantung pada collectionName
+  }, [collectionNameFromUrl, projectId]); // Muat ulang data jika URL koleksi berubah
 
   const handleDelete = async (docId: string) => {
     if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/data/${projectId}/${collectionName}/${docId}`, {
+      const response = await fetch(`http://localhost:8080/api/v1/data/${projectId}/${collectionNameFromUrl}/${docId}`, {
         method: 'DELETE',
         headers: { 'X-API-Key': apiKey },
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Delete failed');
       alert('Document deleted successfully!');
-      fetchData();
+      fetchData(); // Muat ulang data setelah berhasil menghapus
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     }
@@ -114,15 +90,15 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
     let method: string;
     
     if (isEditing) {
-      url = `http://localhost:8080/api/v1/data/${projectId}/${collectionName}/${currentDoc._id}`;
+      url = `http://localhost:8080/api/v1/data/${projectId}/${collectionNameFromUrl}/${currentDoc._id}`;
       method = 'PUT';
     } else {
-      url = `http://localhost:8080/api/v1/data/${projectId}/${collectionName}`;
+      url = `http://localhost:8080/api/v1/data/${projectId}/${collectionNameFromUrl}`;
       method = 'POST';
     }
     
     try {
-      JSON.parse(docContent);
+      JSON.parse(docContent); // Validasi JSON sebelum mengirim
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
@@ -133,51 +109,31 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
       
       alert(`Document ${isEditing ? 'updated' : 'created'} successfully!`);
       setIsModalOpen(false);
-      fetchData();
+      fetchData(); // Muat ulang data setelah berhasil menyimpan
     } catch (err: any) {
         alert(`Error: Invalid JSON format or API error.\n${err.message}`);
     }
   };
 
   return (
-    <div className="mt-8 w-full max-w-4xl rounded-lg bg-white p-8 shadow-md">
-      <h2 className="text-2xl font-bold">Data Explorer</h2>
-      <div className="flex items-center space-x-4">
-        <p className="mt-2 text-gray-600">
-          Project ID: <code className="bg-gray-200 p-1 font-mono text-sm rounded">{projectId}</code>
+    <div className="mt-4 w-full">
+      <div className="flex items-center justify-between">
+        <p className="text-gray-600">
+            API Key: <code className="bg-gray-200 p-1 font-mono text-sm rounded">{apiKey}</code>
         </p>
-        <p className="mt-2 text-gray-600">
-          API Key: <code className="bg-gray-200 p-1 font-mono text-sm rounded">{apiKey}</code>
-        </p>
-      </div>
-
-      <div className="mt-6 flex items-end space-x-4">
-        <div className="flex-grow">
-          <label htmlFor="collectionName" className="block text-sm font-medium text-gray-700">Collection Name</label>
-          <select
-            id="collectionName"
-            value={collectionName}
-            onChange={(e) => setCollectionName(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm"
-            disabled={allCollections.length === 0}
-          >
-            {allCollections.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-             {allCollections.length === 0 && <option>No collections found</option>}
-          </select>
+        <div>
+            <button onClick={fetchData} disabled={isLoading} className="mr-4 rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400">
+            {isLoading ? 'Loading...' : 'Refresh'}
+            </button>
+            <button onClick={openCreateModal} className="rounded-md bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">
+            + Create New
+            </button>
         </div>
-        <button onClick={fetchData} disabled={isLoading} className="rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400">
-          {isLoading ? 'Loading...' : 'Refresh'}
-        </button>
-         <button onClick={openCreateModal} disabled={allCollections.length === 0} className="rounded-md bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700 disabled:bg-gray-400">
-          + Create
-        </button>
       </div>
       
       {error && <div className="mt-4 rounded bg-red-100 p-4 text-center font-bold text-red-700">{error}</div>}
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6 overflow-x-auto rounded-lg border">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -188,7 +144,11 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
           <tbody className="divide-y divide-gray-200 bg-white">
             {documents.map(doc => (
               <tr key={doc._id}>
-                {headers.map(header => <td key={`${doc._id}-${header}`} className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{JSON.stringify(doc[header])}</td>)}
+                {headers.map(header => (
+                  <td key={`${doc._id}-${header}`} className="whitespace-nowrap px-6 py-4 text-sm text-gray-700 max-w-xs truncate">
+                    {JSON.stringify(doc[header])}
+                  </td>
+                ))}
                 {headers.length > 0 && (
                   <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                     <button onClick={() => openEditModal(doc)} className="text-indigo-600 hover:text-indigo-900">Edit</button>
@@ -199,9 +159,11 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
             ))}
           </tbody>
         </table>
-        {documents.length === 0 && !isLoading && <p className="py-4 text-center text-gray-500">No documents found in this collection.</p>}
+        {documents.length === 0 && !isLoading && <p className="py-8 text-center text-gray-500">No documents found in this collection.</p>}
+        {isLoading && <p className="py-8 text-center text-gray-500">Loading documents...</p>}
       </div>
 
+      {/* Modal untuk Create/Edit */}
       <Transition appear show={isModalOpen} as={Fragment}>
         <Dialog as="div" className="relative z-10" onClose={() => setIsModalOpen(false)}>
           <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
@@ -212,7 +174,7 @@ export default function DataExplorer({ projectId, apiKey }: DataExplorerProps) {
                   <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                       <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                           <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                              {isEditing ? 'Edit Document' : 'Create New Document'}
+                              {isEditing ? `Edit Document in "${collectionNameFromUrl}"` : `Create New Document in "${collectionNameFromUrl}"`}
                           </Dialog.Title>
                           <div className="mt-4">
                               <textarea

@@ -13,12 +13,15 @@ func SetupRoutes(app *fiber.App) {
 	// --- Rute Manajemen Platform ---
 	api.Post("/projects", controllers.CreateProject)
 	api.Get("/projects", controllers.GetAllProjects)
+	api.Get("/projects/:id", controllers.GetOneProject)
 	api.Delete("/projects/:id", controllers.DeleteProject)
 	api.Put("/projects/:id", controllers.UpdateProject)
 	api.Get("/projects/:id/collections", controllers.ListCollections)
 	api.Post("/projects/:id/collections", controllers.CreateUserCollection)
+	api.Put("/projects/:id/collections/:collName", controllers.UpdateCollection)
+	api.Delete("/projects/:id/collections/:collName", controllers.DeleteCollection)
 
-	// Rute BARU untuk menyajikan file (tidak perlu otentikasi)
+	// Rute untuk menyajikan file (tidak perlu otentikasi)
 	api.Get("/files/:projectId/:collectionName/:docId/:fieldName", controllers.GetFile)
 
 	// --- Rute API Dinamis untuk Data User (Perlu Otentikasi) ---
